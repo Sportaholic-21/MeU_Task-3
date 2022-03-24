@@ -34,10 +34,9 @@ module.exports.login = (req, res) => {
                         const accessToken = genTokens.generateAccessToken(user.username)
                         const refreshToken = genTokens.generateRefreshToken(user.username)
                         req.session.refreshToken = refreshToken
-                        req.session.save()
+                        req.session.accessToken = accessToken
                         return res.status(200).json({
-                            accessToken: accessToken,
-                            refreshToken: refreshToken
+                            accessToken: accessToken
                         });
                     }
                     return res.status(403).json('The password is not correct')

@@ -11,20 +11,19 @@ module.exports = function (app) {
      *    description: Use to request all users with pagination, require to be authorized
      *    parameters:
      *     - in: query
-     *       name: pagination options
-     *       description: additional params for pagination, default at page 1 size 10
+     *       name: pagination option - page
+     *       description: additional params for pagination, default at page 1
      *       required: false
      *       schema:
-     *          properties:
-     *           page:
-     *              type: number
-     *           size:
-     *              type: number
-     *     - in: header
-     *       name: Authorization
+     *          type: number
+     *     - in: query
+     *       name: pagination option - size
+     *       description: additional params for pagination, default at size 10
+     *       required: false
      *       schema:
-     *          type: string
-     *       required: true
+     *          type: number
+     *    security:
+     *      - bearerAuth: []
      *    responses:
      *      '200':
      *        description: A successful response

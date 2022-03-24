@@ -10,14 +10,23 @@ const swaggerOptions = {
                 name: "Long Nguyen Phuc"
             },
             servers: [`http://localhost:3000`]
+        },
+        securityDefinitions: {
+            bearerAuth: {
+                type: 'apiKey',
+                name: 'Authorization',
+                scheme: 'bearer',
+                in: 'header'
+            }
         }
     },
-    apis: ["routes/*/*.js"]
+    apis: ["routes/*/*.js"],
+
 }
 
 const swaggerDocs = swaggerJSDoc(swaggerOptions)
 
-module.exports = function(app) {
+module.exports = function (app) {
     /**
      * @swagger
      * /api-docs:
