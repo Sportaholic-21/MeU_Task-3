@@ -3,12 +3,17 @@ class UserService {
         this._User = User
     }
 
-    async getAllUsers(page, size) {
+    async getUsersCount() {
+        return await this._User.count()
+    }
+
+    async getAllUsers(filters, page, size) {
         return await this._User.findAll({
-            attributes: {exclude: ['password']},
+            where: filters,
+            attributes: { exclude: ['password'] },
             limit: size,
             offset: (page - 1) * size
-        }) 
+        })
     }
 
     async addUser(newUser) {

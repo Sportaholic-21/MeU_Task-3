@@ -7,56 +7,73 @@ const userService = new UserService(models.UserTbl)
 const genTokens = require('../helpers/genTokens')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const mail = require('../config/nodemailer')
-
+const mail = require('../config/nodemailer');
+const { apiResponse } = require('../helpers/apiResponseOutput');
 
 module.exports.getAllUser = async (req, res) => {
+    let message, responseData, status, violations = ""
+    let statusCode
     try {
         const page = req.query.page || 1
         const size = req.query.size || 10
-        return res.json(await userService.getAllUsers(page, size))    
+        const filter = req.queryFinder || {}
+        const users = await userService.getAllUsers(filter, page, size)
+        const count = await userService.getUsersCount()
+        console.log(users)
+        message = "Sucessfully retrieved data"
+        responseData = {
+            count: count,
+            rows: users,
+            totalPages: Math.ceil(count / size),
+            currentPage: page
+        }
+        status = "success"
+        violations = "None"
+        statusCode = 200
     } catch (error) {
+        message = "Failed to retrieve data"
+        responseData = error.toString()
+        status = "fail"
         console.log(error)
-        return res.status(500).json("Error when retrieving data")
+        statusCode = 500
     }
-     
+    return apiResponse(res, message, responseData, status, statusCode, violations)
 }
 
 module.exports.login = (req, res) => {
     userService.findUserByName(req.body.name)
         .then(user => {
             if (!user) {
-                return res.status(401).json('User does not exist')
+                return apiResponse(res, 'User does not exists', "", "fail", 401, "")
             } else {
                 bcrypt.compare(req.body.password, user.password, (err, isMatch) => {
                     if (err) throw err;
                     if (isMatch) {
                         const accessToken = genTokens.generateAccessToken(user.username)
                         const refreshToken = genTokens.generateRefreshToken(user.username)
+                        const responseData = { accessToken: accessToken }
                         req.session.refreshToken = refreshToken
-                        req.session.accessToken = accessToken
-                        return res.status(200).json({
-                            accessToken: accessToken
-                        });
+                        return apiResponse(res, "Successfully logged user in", responseData, "success", 200, "")
                     }
-                    return res.status(403).json('The password is not correct')
+                    return apiResponse(res, 'The password is not correct', "", "fail", 403, "")
                 })
             }
         })
         .catch(err => {
             console.log(err)
-            return res.status(500).json('Error during validating')
+            return apiResponse(res, 'Error during validating', "", "fail", 500, "")
         })
 }
 
 module.exports.genNewAccessToken = (req, res) => {
     const refreshToken = req.body.token
-    if (refreshToken == null) return res.sendStatus(401).json('No refresh token was provided')
-    if (!req.session.refreshTokens.includes(refreshToken)) return res.sendStatus(403)
+    if (refreshToken == null) return apiResponse(res, 'No refresh token was provided', "", "fail", 401, "")
+    if (!req.session.refreshTokens.includes(refreshToken)) return apiResponse(res, 'Refresh token does not match', "", "fail", 403, "")
     jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-        if (err) return res.sendStatus(403).json('Failed to verify refresh token')
+        if (err) return apiResponse(res, "Fail to verify token", "", "fail", 403, "")
         const accessToken = generateAccessToken({ name: user.name })
-        return res.json({ accessToken: accessToken })
+        const responseData = { accessToken: accessToken }
+        return apiResponse(res, "Successfully refreshed new access token", responseData, "success", 200, "")
     })
 }
 
@@ -84,22 +101,22 @@ module.exports.register = async (req, res) => {
         req.session.verify = result
         console.log(req.session.verify)
         req.session.newUser = newUser
-        return res.json("An email has been sent")
+        return apiResponse(res, "An email has been sent", "", "success", 200, "")
     } catch (error) {
         console.log(error)
-        return res.status(500).json(error)
+        return apiResponse(res, "Error in validating", error, "fail", 500, "")
     }
 }
 
 module.exports.verifiedEmail = async (req, res) => {
     if (req.params.verifyCode != req.session.verify) {
-        return res.status(500).json("Something happened and your data could not be verified")
+        return apiResponse(res, "Something happened and your data could not be verified", "", "fail", 500, "")
     }
     if (await userService.addUser(req.session.newUser)) {
         delete req.session.verify
         delete req.session.newUser
         req.session.save()
-        return res.status(200).json("Successfully created new User")
+        return apiResponse(res, "Successfully created new User", "", "success", 200, "")
     }
-    return res.status(500).json("Something happened and your data could not be verified")
+    return apiResponse(res, "Something happened and your data could not be verified", "", "fail", 500, "")
 }
