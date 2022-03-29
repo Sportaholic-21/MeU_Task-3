@@ -51,7 +51,7 @@ module.exports = function (app) {
      *       description: additional params for pagination, default at size 10
      *       required: false
      *       schema:
-     *     - in: params
+     *     - in: path
      *       name: filter
      *       description: add filters
      *       required: true
