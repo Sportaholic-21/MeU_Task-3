@@ -32,9 +32,40 @@ module.exports = function (app) {
      *      '403':
      *        description: Forbidden
      */
-    app.get(baseRoute, userController.getAllUser)
+    app.get(baseRoute, middleware.userAuthToken, userController.getAllUser)
 
-    app.get(baseRoute + "/:filter", middleware.handleFilterOptions, middleware.queryBuilder,userController.getAllUser)
+    /**
+     * @swagger
+     * /api/users/{filter}:
+     *  get:
+     *    description: Use to request all users with pagination, require to be authorized
+     *    parameters:
+     *     - in: query
+     *       name: pagination option - page
+     *       description: additional params for pagination, default at page 1
+     *       required: false
+     *       schema:
+     *          type: number
+     *     - in: query
+     *       name: pagination option - size
+     *       description: additional params for pagination, default at size 10
+     *       required: false
+     *       schema:
+     *     - in: params
+     *       name: filter
+     *       description: add filters
+     *       required: true
+     *    security:
+     *      - bearerAuth: []
+     *    responses:
+     *      '200':
+     *        description: A successful response
+     *      '401':
+     *        description: Unauthorized
+     *      '403':
+     *        description: Forbidden
+     */
+    app.get(baseRoute + "/:filter", middleware.userAuthToken,middleware.handleFilterOptions, middleware.queryBuilder,userController.getAllUser)
 
     /**
      * @swagger
