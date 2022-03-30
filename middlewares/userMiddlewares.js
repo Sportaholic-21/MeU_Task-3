@@ -33,7 +33,16 @@ module.exports.hashPassword = async (req, res, next) => {
 module.exports.handleFilterOptions = async (req, res, next) => {
     try {
         let rawOptions = req.params.filter
-        if (rawOptions == "undefined") return res.redirect('../users')
+        if (rawOptions == "undefined") {
+            let pagination = req.query
+            let keys = Object.keys(pagination)
+            let query = ""
+            for (var i in keys) {
+                query += keys[i] + "=" + pagination[keys[i]]
+                query += "&"
+            }
+            return res.redirect('../users?' + query)
+        }
         let processedOptions = []
         rawOptions = rawOptions.split(",") // Spliting "," into separate funcs
         rawOptions.forEach(option => { // each option and

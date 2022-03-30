@@ -11,13 +11,13 @@ module.exports = function (app) {
      *    description: Use to request all users with pagination, require to be authorized
      *    parameters:
      *     - in: query
-     *       name: pagination option - page
+     *       name: page
      *       description: additional params for pagination, default at page 1
      *       required: false
      *       schema:
      *          type: number
      *     - in: query
-     *       name: pagination option - size
+     *       name: size
      *       description: additional params for pagination, default at size 10
      *       required: false
      *       schema:
@@ -32,7 +32,7 @@ module.exports = function (app) {
      *      '403':
      *        description: Forbidden
      */
-    app.get(baseRoute, middleware.userAuthToken, userController.getAllUser)
+    app.get(baseRoute, userController.getAllUser)
 
     /**
      * @swagger
@@ -41,13 +41,13 @@ module.exports = function (app) {
      *    description: Use to request all users with pagination, require to be authorized
      *    parameters:
      *     - in: query
-     *       name: pagination option - page
+     *       name: page
      *       description: additional params for pagination, default at page 1
      *       required: false
      *       schema:
      *          type: number
      *     - in: query
-     *       name: pagination option - size
+     *       name: size
      *       description: additional params for pagination, default at size 10
      *       required: false
      *       schema:
@@ -66,7 +66,7 @@ module.exports = function (app) {
      *      '500':
      *        description: Internal Server Error
      */
-    app.get(baseRoute + "/:filter", middleware.userAuthToken, middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
+    app.get(baseRoute + "/:filter", middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
 
     /**
      * @swagger
