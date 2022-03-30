@@ -8,11 +8,11 @@ const { apiResponse } = require('../helpers/apiResponseOutput')
 module.exports.userAuthToken = (req, res, next) => {
     const authHeader = req.headers['authorization']
     const token = authHeader && authHeader.split(' ')[1]
-    if (token == null) return apiResponse(res, "Unauthorized", "", "fail", 401, "")
+    if (token == null) return apiResponse(res, "Unauthorized", "", "fail", "Unauthorized")
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
         if (err) {
             console.log(err)
-            return apiResponse(res, "Access denied", "", "fail", 403, "")
+            return apiResponse(res, "Access denied", "", "fail", "Forbidden")
         }
         req.user = user
         next()
@@ -32,8 +32,9 @@ module.exports.hashPassword = async (req, res, next) => {
 
 module.exports.handleFilterOptions = async (req, res, next) => {
     try {
-        let processedOptions = []
         let rawOptions = req.params.filter
+        if (rawOptions == "undefined") return res.redirect('../users')
+        let processedOptions = []
         rawOptions = rawOptions.split(",") // Spliting "," into separate funcs
         rawOptions.forEach(option => { // each option and
             // Identify operator
@@ -85,7 +86,7 @@ module.exports.handleFilterOptions = async (req, res, next) => {
         req.filterOptions = processedOptions
         next()
     } catch (error) {
-        return apiResponse(res, "Failed to process filter options", error.toString(), "fail", 500, "")
+        return apiResponse(res, error.toString(),"", "fail", "Internal Server Error")
     }
 }
 
@@ -122,6 +123,6 @@ module.exports.queryBuilder = async (req, res, next) => {
         req.queryFinder = query
         next()
     } catch (error) {
-        return apiResponse(res, "Failed to create query", error.toString(), "fail", 500, "")
+        return apiResponse(res, "Failed to create query", error.toString(), "fail", "Internal Server Error")
     }
 }

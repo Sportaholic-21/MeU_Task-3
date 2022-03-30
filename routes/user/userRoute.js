@@ -54,7 +54,6 @@ module.exports = function (app) {
      *     - in: path
      *       name: filter
      *       description: add filters
-     *       required: true
      *    security:
      *      - bearerAuth: []
      *    responses:
@@ -64,8 +63,10 @@ module.exports = function (app) {
      *        description: Unauthorized
      *      '403':
      *        description: Forbidden
+     *      '500':
+     *        description: Internal Server Error
      */
-    app.get(baseRoute + "/:filter", middleware.userAuthToken,middleware.handleFilterOptions, middleware.queryBuilder,userController.getAllUser)
+    app.get(baseRoute + "/:filter", middleware.userAuthToken, middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
 
     /**
      * @swagger
