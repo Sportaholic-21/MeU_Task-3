@@ -8,11 +8,11 @@ const { apiResponse } = require('../helpers/apiResponseOutput')
 module.exports.userAuthToken = (req, res, next) => {
     const authHeader = req.headers['authorization']
     const token = authHeader && authHeader.split(' ')[1]
-    if (token == null) return apiResponse(res, "Unauthorized", "", "fail", "Unauthorized")
+    if (token == null) return res.status(401).apiResponseFail("We can not verify your login", "No token provided")
     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
         if (err) {
             console.log(err)
-            return apiResponse(res, "Access denied", "", "fail", "Forbidden")
+            return res.status(403).apiResponseFail("We can not verify your login", "Bad token")
         }
         req.user = user
         next()
@@ -95,7 +95,7 @@ module.exports.handleFilterOptions = async (req, res, next) => {
         req.filterOptions = processedOptions
         next()
     } catch (error) {
-        return apiResponse(res, error.toString(),"", "fail", "Internal Server Error")
+        return res.status(500).apiResponse("Unable to proccess filter options", error.toString())
     }
 }
 
@@ -132,6 +132,6 @@ module.exports.queryBuilder = async (req, res, next) => {
         req.queryFinder = query
         next()
     } catch (error) {
-        return apiResponse(res, "Failed to create query", error.toString(), "fail", "Internal Server Error")
+        return res.status(500).apiResponseFail("Failed to create query", error.toString())
     }
 }

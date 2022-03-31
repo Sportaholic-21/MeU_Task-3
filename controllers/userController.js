@@ -26,11 +26,11 @@ module.exports.getAllUser = async (req, res) => {
             totalPages: totalPages,
             currentPage: (filter.length > 0 && count == 0) ? 0 : totalPages
         }
-        return apiResponseSuccess(res, message, responseData)
+        return res.status(200).apiResponseSuccess(message, responseData)
     } catch (error) {
-        message = "Internal Server Error"
+        message = "Something happened and your data could not be verified"
         violations = error.toString()
-        return apiResponseFail(res, message, violations)
+        return res.status(500).apiResponseFail(message, violations)
     }
 }
 
@@ -38,7 +38,7 @@ module.exports.login = (req, res) => {
     userService.findUserByName(req.body.name)
         .then(user => {
             if (!user) {
-                return apiResponseFail(res, "Unauthorized", 'User does not exists')
+                return res.status(401).apiResponseFail("Could not find user", 'User does not exists')
             } else {
                 bcrypt.compare(req.body.password, user.password, (err, isMatch) => {
                     if (err) throw err;
@@ -47,27 +47,27 @@ module.exports.login = (req, res) => {
                         const refreshToken = genTokens.generateRefreshToken(user.username)
                         const responseData = { accessToken: accessToken }
                         req.session.refreshToken = refreshToken
-                        return apiResponseSuccess(res, "Successfully logged user in", responseData)
+                        return res.status(200).apiResponseSuccess("Successfully logged user in", responseData)
                     }
-                    return apiResponseFail(res, "Forbidden", 'The password is not correct')
+                    return res.status(403).apiResponseFail("Wrong password", 'The password is not correct')
                 })
             }
         })
         .catch(err => {
             console.log(err)
-            return apiResponse(res, "Internal Server Error", err.toString())
+            return res.status(500).apiResponseFail("Something happened and your data could not be verified", err.toString())
         })
 }
 
 module.exports.genNewAccessToken = (req, res) => {
     const refreshToken = req.body.token
-    if (refreshToken == null) return apiResponseFail(res, "Unauthorized", 'No refresh token was provided')
-    if (!req.session.refreshTokens.includes(refreshToken)) return apiResponseFail(res, "Forbidden", 'Refresh token does not match')
+    if (refreshToken == null) return res.status(401).apiResponseFail("You do not have access", 'No refresh token was provided')
+    if (!req.session.refreshTokens.includes(refreshToken)) return res.status(403).apiResponseFail("Wrong token", 'Refresh token does not match')
     jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-        if (err) return apiResponseFail(res, "Forbidden", "Fail to verify token")
+        if (err) return res.status(403).apiResponseFail("Forbidden", err.toString())
         const accessToken = generateAccessToken({ name: user.name })
         const responseData = { accessToken: accessToken }
-        return apiResponseSuccess(res, "Successfully refreshed new access token", responseData)
+        return res.status(200).apiResponseSuccess("Successfully refreshed new access token", responseData)
     })
 }
 
@@ -95,22 +95,22 @@ module.exports.register = async (req, res) => {
         req.session.verify = result
         console.log(req.session.verify)
         req.session.newUser = newUser
-        return apiResponseSuccess(res, "An email has been sent", "")
+        return res.status(200).apiResponseSuccess("An email has been sent", "")
     } catch (error) {
         console.log(error)
-        return apiResponseFail(res, "Internal Server Error", error.toString())
+        return res.status(500).apiResponseFail("An email could not be sent", error.toString())
     }
 }
 
 module.exports.verifiedEmail = async (req, res) => {
     if (req.params.verifyCode != req.session.verify) {
-        return apiResponse(res, "Unauthorized", "Something happened and your data could not be verified")
+        return res.status(401).apiResponseFail("Something happened and your data could not be verified", "Wrong verify link")
     }
     if (await userService.addUser(req.session.newUser)) {
         delete req.session.verify
         delete req.session.newUser
         req.session.save()
-        return apiResponseSuccess(res, "Successfully created new User", "")
+        return res.status(200).apiResponseSuccess("Successfully created new User", "")
     }
-    return apiResponse(res, "Internal Server Error", "Something happened and your data could not be verified")
+    return res.status(500).apiResponseFail("Something happened and your data could not be verified", "Error during adding user")
 }
