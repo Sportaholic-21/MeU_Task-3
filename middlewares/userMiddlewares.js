@@ -2,7 +2,9 @@ require('dotenv').config()
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 const Op = require('sequelize').Op
-const { apiResponse } = require('../helpers/apiResponseOutput')
+const { dateInput } = require('../helpers/dateInput')
+const { apiResponseFail } = require('../helpers/apiResponseOutput');
+const { queryBuilder } = require('../helpers/queryBuilder')
 
 
 module.exports.userAuthToken = (req, res, next) => {
@@ -43,7 +45,9 @@ module.exports.handleFilterOptions = async (req, res, next) => {
             }
             return res.redirect('../users?' + query)
         }
-        let processedOptions = []
+        let userOptions = []
+        let userRoleOptions = []
+        let userRoleTypeOptions = []
         rawOptions = rawOptions.split(",") // Spliting "," into separate funcs
         rawOptions.forEach(option => { // each option and
             // Identify operator
@@ -84,15 +88,88 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 columns = argumentColumns.split("|")
             } else {
                 columns.push(argumentColumns)
+                if (argumentColumns.includes("createdAt")) {
+                    parameters = dateInput(parameters)
+                    let endDate = new Date("12/31/3000"), startDate = new Date("1/1/1970")
+                    switch (operator) {
+                        case Op.eq:
+                            startDate = parameters
+                            endDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
+                            break;
+                        case Op.lte:
+                            endDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
+                            break;
+                        case Op.lt:
+                            endDate = new Date(parameters.getTime() - 1)
+                            break;
+                        case Op.gt:
+                            startDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000)
+                            break;
+                        case Op.gte:
+                            startDate = parameters
+                            break;
+                        case Op.ne:
+                            endDate = parameters
+                            startDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
+                            break;
+                        default:
+                            return res.status(500).json(apiResponseFail("Operator for createdAt must be >, <, =, >=, <=, !=", "Invalid operator"))
+                    }
+                    userOptions.push({
+                        columns: columns,
+                        operator: Op.gte,
+                        parameters: startDate
+                    }, {
+                        columns: columns,
+                        operator: Op.lte,
+                        parameters: endDate
+                    })
+                }
             }
-            // push proccessed option to next middleware
-            processedOptions.push({
-                columns: columns,
-                operator: operator,
-                parameters: parameters
-            })
+            if (columns.indexOf('createdAt') == -1) {
+                // push proccessed option to next middleware
+                userOptions.push({
+                    columns: columns,
+                    operator: operator,
+                    parameters: parameters
+                })
+            }
         })
-        req.filterOptions = processedOptions
+        for (var i in userOptions) {
+            let userRoleCol = []
+            let userRoleTypeCol = []
+            userOptions[i].columns.forEach(function (col) {
+                let temp = col
+                if (col.includes("user_role_type")) {
+                    temp = temp.replace("user_role_type_", "")
+                    userRoleTypeCol.push(temp)
+                } else if (col.includes("user_role")) {
+                    temp = temp.replace("user_role_", "")
+                    userRoleCol.push(temp)
+                }
+            })
+            userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
+                return !(val.includes("user_role"))
+            })
+            if (userRoleCol.length > 0) {
+                userRoleOptions.push({
+                    columns: userRoleCol,
+                    operator: userOptions[i].operator,
+                    parameters: userOptions[i].parameters
+                })
+            }
+            if (userRoleTypeCol.length > 0) {
+                userRoleTypeOptions.push({
+                    columns: userRoleTypeCol,
+                    operator: userOptions[i].operator,
+                    parameters: userOptions[i].parameters
+                })
+            }
+            if (userOptions[i].columns.length <= 0) userOptions[i] = {}
+        }
+        req.userRoleOptions = userRoleOptions
+        req.userRoleTypeOptions = userRoleTypeOptions
+        req.userOptions = userOptions
         next()
     } catch (error) {
         return res.status(500).json(apiResponseFail("Unable to proccess filter options", error.toString()))
@@ -101,35 +178,9 @@ module.exports.handleFilterOptions = async (req, res, next) => {
 
 module.exports.queryBuilder = async (req, res, next) => {
     try {
-        const filters = req.filterOptions
-        let query = {}
-        optionOr = [],
-            optionAnd = []
-        const condition = (column, operator, parameter) => {
-            return {
-                [column]: {
-                    [operator]: parameter
-                }
-            }
-        }
-        for (var optionIndex in filters) {
-            let index = filters[optionIndex]
-            let optionQuery = {}
-            if (index.columns.length > 1) {
-                for (var col in index.columns) {
-                    optionOr.push(condition(index.columns[col], index.operator, index.parameters))
-                }
-                optionQuery = {
-                    [Op.or]: optionOr
-                }
-            } else optionQuery = condition(index.columns[0], index.operator, index.parameters)
-
-            optionAnd.push(optionQuery)
-        }
-        query = {
-            [Op.and]: optionAnd
-        }
-        req.queryFinder = query
+        req.userQuery = queryBuilder(req.userOptions)
+        req.userRoleQuery = queryBuilder(req.userRoleOptions)
+        req.userRoleTypeQuery = queryBuilder(req.userRoleTypeOptions)
         next()
     } catch (error) {
         return res.status(500).json(apiResponseFail("Failed to create query", error.toString()))

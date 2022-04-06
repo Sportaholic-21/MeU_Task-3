@@ -1,11 +1,12 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define('UserTbl', {
-    id: {
+    userId: {
       autoIncrement: true,
       type: DataTypes.INTEGER,
       allowNull: false,
-      primaryKey: true
+      primaryKey: true,
+      field: 'user_id'
     },
     username: {
       type: DataTypes.STRING(50),
@@ -21,14 +22,11 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       unique: "user_tbl_email_key"
     },
-    roleId: {
-      type: DataTypes.INTEGER,
+    createdAt: {
+      type: DataTypes.DATE,
       allowNull: false,
-      references: {
-        model: 'user_role_tbl',
-        key: 'id'
-      },
-      field: 'role_id'
+      defaultValue: Sequelize.Sequelize.literal('CURRENT_TIMESTAMP'),
+      field: 'created_at'
     }
   }, {
     sequelize,
@@ -47,7 +45,7 @@ module.exports = function(sequelize, DataTypes) {
         name: "user_tbl_pkey",
         unique: true,
         fields: [
-          { name: "id" },
+          { name: "user_id" },
         ]
       },
       {

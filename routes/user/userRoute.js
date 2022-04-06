@@ -32,13 +32,13 @@ module.exports = function (app) {
      *      '403':
      *        description: Forbidden
      */
-    app.get(baseRoute, userController.getAllUser)
+    app.get(baseRoute, middleware.userAuthToken, userController.getAllUser)
 
     /**
      * @swagger
      * /api/users/{filter}:
      *  get:
-     *    description: Use to request all users with pagination, require to be authorized
+     *    description: Use to request all users with pagination, require to be authorized 
      *    parameters:
      *     - in: query
      *       name: page
@@ -53,7 +53,7 @@ module.exports = function (app) {
      *       schema:
      *     - in: path
      *       name: filter
-     *       description: add filters
+     *       description: Use syntax user_role_<column> for querying user role table, user_role__type_<column> for querying user role type table.
      *    security:
      *      - bearerAuth: []
      *    responses:
@@ -66,7 +66,7 @@ module.exports = function (app) {
      *      '500':
      *        description: Internal Server Error
      */
-    app.get(baseRoute + "/:filter", middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
+    app.get(baseRoute + "/:filter", middleware.userAuthToken, middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
 
     /**
      * @swagger

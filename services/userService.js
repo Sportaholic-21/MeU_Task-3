@@ -1,16 +1,28 @@
 class UserService {
-    constructor(User) {
-        this._User = User
+    constructor(models) {
+        this._User = models.UserTbl
+        this._User_Role = models.UserRoleTbl
+        this._User_Role_Type = models.UserRoleTypeTbl
     }
 
     async getUsersCount() {
         return await this._User.count()
     }
 
-    async getAllUsers(filters, page, size) {
-        return await this._User.findAll({
-            where: filters,
-            attributes: { exclude: ['password'] },
+    async getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size) {
+        return await this._User_Role.findAll({
+            where: userRoleQuery,
+            include: [{
+                model: this._User,
+                as: "user",
+                attributes: ['userId', 'username', 'email', 'createdAt'],
+                where: userQuery,
+
+            }, {
+                model: this._User_Role_Type,
+                as: "role",
+                where: userRoleTypeQuery
+            }],
             limit: size,
             offset: (page - 1) * size
         })
@@ -22,9 +34,11 @@ class UserService {
                 username: newUser.username,
                 password: newUser.password,
                 email: newUser.email,
-                roleId: newUser.roleId
-            }).then(function (user) {
-                console.log(user)
+            }).then(async user => {
+                await this._User_Role.create({
+                    userId: user.userId,
+                    roleId: newUser.roleId
+                })
             })
             return true
         } catch (error) {

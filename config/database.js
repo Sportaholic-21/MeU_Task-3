@@ -26,22 +26,33 @@ pool.query(`SELECT FROM pg_database WHERE datname = '${process.env.DATABASE_NAME
           })
           await pool.query(
             `
-            CREATE TABLE IF NOT EXISTS user_role_tbl (
-              id serial PRIMARY KEY,
-              role VARCHAR(10) UNIQUE NOT NULL
-            );
             CREATE TABLE IF NOT EXISTS user_tbl (
-                id serial PRIMARY KEY,
-                username VARCHAR (50) UNIQUE NOT NULL,
-                password VARCHAR (255) NOT NULL,
-                email VARCHAR (255) UNIQUE NOT NULL,
-                role_id int NOT NULL,
-                FOREIGN KEY(role_id) REFERENCES user_role_tbl(id)
+              user_id serial PRIMARY KEY,
+              username VARCHAR (50) UNIQUE NOT NULL,
+              password VARCHAR (255) NOT NULL,
+              email VARCHAR (255) UNIQUE NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
-            INSERT INTO user_role_tbl(role)
+
+            CREATE TABLE IF NOT EXISTS user_role_type_tbl (
+              role_id serial PRIMARY KEY,
+              name VARCHAR(100) NOT NULL,
+              code VARCHAR(10) NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS user_role_tbl (
+              user_id int NOT NULL,
+              role_id int NOT NULL,
+              PRIMARY KEY (user_id, role_id),
+              FOREIGN KEY (user_id) REFERENCES user_tbl(user_id),
+              FOREIGN KEY (role_id) REFERENCES user_role_type_tbl(role_id)
+            );
+
+            INSERT INTO user_role_type_tbl(name, code)
             VALUES 
-                ('admin'), 
-                ('user');
+                ('admin', 'ad001'), 
+                ('user', 'us001');
           `
           )
         })

@@ -1,16 +1,25 @@
 const Sequelize = require('sequelize');
 module.exports = function(sequelize, DataTypes) {
   return sequelize.define('UserRoleTbl', {
-    id: {
-      autoIncrement: true,
+    userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      primaryKey: true
+      primaryKey: true,
+      references: {
+        model: 'user_tbl',
+        key: 'user_id'
+      },
+      field: 'user_id'
     },
-    role: {
-      type: DataTypes.STRING(10),
+    roleId: {
+      type: DataTypes.INTEGER,
       allowNull: false,
-      unique: "user_role_tbl_role_key"
+      primaryKey: true,
+      references: {
+        model: 'user_role_type_tbl',
+        key: 'role_id'
+      },
+      field: 'role_id'
     }
   }, {
     sequelize,
@@ -22,14 +31,8 @@ module.exports = function(sequelize, DataTypes) {
         name: "user_role_tbl_pkey",
         unique: true,
         fields: [
-          { name: "id" },
-        ]
-      },
-      {
-        name: "user_role_tbl_role_key",
-        unique: true,
-        fields: [
-          { name: "role" },
+          { name: "user_id" },
+          { name: "role_id" },
         ]
       },
     ]

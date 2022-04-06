@@ -3,7 +3,7 @@ var initModels = require("../models/init-models");
 const sequelize = require('../config/sequelize')
 var models = initModels(sequelize);
 const UserService = require('../services/userService')
-const userService = new UserService(models.UserTbl)
+const userService = new UserService(models)
 const genTokens = require('../helpers/genTokens')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
@@ -15,8 +15,10 @@ module.exports.getAllUser = async (req, res) => {
     try {
         const page = req.query.page || 1
         const size = req.query.size || 10
-        const filter = req.queryFinder || {}
-        const users = await userService.getAllUsers(filter, page, size)
+        const userQuery = req.userQuery || {}
+        const userRoleQuery = req.userRoleQuery || {}
+        const userRoleTypeQuery = req.userRoleTypeQuery || {}
+        const users = await userService.getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size)
         const count = users.length
         const totalPages = Math.ceil(users.length / size)
         message = "Sucessfully retrieved data"
@@ -24,7 +26,7 @@ module.exports.getAllUser = async (req, res) => {
             count: count,
             rows: users,
             totalPages: totalPages,
-            currentPage: (filter.length > 0 && count == 0) ? 0 : totalPages
+            currentPage: (userRoleQuery.length > 0 && count == 0) ? 0 : totalPages
         }
         return res.status(200).json(apiResponseSuccess(message, responseData))
     } catch (error) {
@@ -97,7 +99,6 @@ module.exports.register = async (req, res) => {
         req.session.newUser = newUser
         return res.status(200).json(apiResponseSuccess("An email has been sent", ""))
     } catch (error) {
-        console.log(error)
         return res.status(500).json(apiResponseFail("An email could not be sent", error.toString()))
     }
 }
