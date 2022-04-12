@@ -1,3 +1,5 @@
+const Op = require("sequelize").Op
+
 class UserService {
     constructor(models) {
         this._User = models.UserTbl
@@ -10,6 +12,30 @@ class UserService {
     }
 
     async getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size) {
+        const checkQueryEmpty = (query) => {
+            return query[Op.and] == undefined
+        }
+        if (checkQueryEmpty(userRoleQuery) && (!checkQueryEmpty(userQuery) || !checkQueryEmpty(userRoleTypeQuery))) {
+            let output = []
+            if (!checkQueryEmpty(userQuery)) {
+                const user = await this._User.findAll({
+                    where: userQuery,
+                    attributes: ['userId', 'username', 'email', 'createdAt'],
+                    limit: size,
+                    offset: (page - 1) * size
+                })
+                output.push(user)
+            }
+            if (!checkQueryEmpty(userRoleTypeQuery)) {
+                const role = await this._User_Role_Type.findAll({
+                    where: userRoleTypeQuery,
+                    limit: size,
+                    offset: (page - 1) * size
+                })
+                output.push(role)
+            }
+            return output
+        }
         return await this._User_Role.findAll({
             where: userRoleQuery,
             include: [{
