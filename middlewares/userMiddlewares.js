@@ -88,7 +88,7 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 columns = argumentColumns.split("|")
             } else {
                 columns.push(argumentColumns)
-                if (argumentColumns.includes("createdAt")) {
+                if (argumentColumns.includes("created_at")) {
                     parameters = dateInput(parameters)
                     let endDate = new Date("12/31/3000"), startDate = new Date("1/1/1970")
                     switch (operator) {
@@ -115,6 +115,7 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                         default:
                             return res.status(500).json(apiResponseFail("Operator for createdAt must be >, <, =, >=, <=, !=", "Invalid operator"))
                     }
+                    columns[0] = "createdAt"
                     userOptions.push({
                         columns: columns,
                         operator: Op.gte,
