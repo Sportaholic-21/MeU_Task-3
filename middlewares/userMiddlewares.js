@@ -140,11 +140,12 @@ module.exports.handleFilterOptions = async (req, res, next) => {
             let userRoleTypeCol = []
             userOptions[i].columns.forEach(function (col) {
                 let temp = col
-                if (col.includes("user_role_type")) {
-                    temp = temp.replace("user_role_type_", "")
+                if (col.includes("_tbl")) temp = temp.replace("_tbl","")
+                if (col.includes("user_role_type.")) {
+                    temp = temp.replace("user_role_type.", "")
                     userRoleTypeCol.push(temp)
-                } else if (col.includes("user_role")) {
-                    temp = temp.replace("user_role_", "")
+                } else if (col.includes("user_role.")) {
+                    temp = temp.replace("user_role.", "")
                     userRoleCol.push(temp)
                 }
             })
