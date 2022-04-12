@@ -24,7 +24,7 @@ class UserService {
                     limit: size,
                     offset: (page - 1) * size
                 })
-                output.push(user)
+                if (user.length > 0) output.push(user)
             }
             if (!checkQueryEmpty(userRoleTypeQuery)) {
                 const role = await this._User_Role_Type.findAll({
@@ -32,7 +32,7 @@ class UserService {
                     limit: size,
                     offset: (page - 1) * size
                 })
-                output.push(role)
+                if (role.length > 0) output.push(role)
             }
             return output
         }
