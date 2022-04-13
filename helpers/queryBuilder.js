@@ -8,8 +8,8 @@ module.exports.queryBuilder = (filterOption) => {
         return Object.keys(val).length > 0
     })
     console.log(filterOption)
-    let query = {}
-    optionOr = [],
+    let query = {},
+        optionOr = [],
         optionAnd = []
     const condition = (column, operator, parameter) => {
         return {

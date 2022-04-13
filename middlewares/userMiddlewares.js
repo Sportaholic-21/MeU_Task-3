@@ -139,6 +139,11 @@ module.exports.handleFilterOptions = async (req, res, next) => {
         for (var i in userOptions) {
             let userRoleCol = []
             let userRoleTypeCol = []
+            if (isNaN(parseInt(userOptions[i].parameters))) {
+                userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
+                    return !(val.toLowerCase().includes("id"))
+                })
+            }
             userOptions[i].columns.forEach(function (col) {
                 let temp = col
                 if (col.includes("_tbl")) temp = temp.replace("_tbl","")
