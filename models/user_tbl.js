@@ -22,6 +22,15 @@ module.exports = function(sequelize, DataTypes) {
       allowNull: false,
       unique: "user_tbl_email_key"
     },
+    userRoleId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: 'user_role_tbl',
+        key: 'user_role_id'
+      },
+      field: 'user_role_id'
+    },
     createdAt: {
       type: DataTypes.DATE,
       allowNull: false,

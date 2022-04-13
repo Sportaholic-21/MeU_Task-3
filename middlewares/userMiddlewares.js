@@ -149,15 +149,24 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 if (col.includes("_tbl")) temp = temp.replace("_tbl","")
                 if (col.includes("user_role_type")) {
                     temp = temp.replace("user_role_type.", "")
+                    if (temp == "created_at") temp = "createdAt"
                     userRoleTypeCol.push(temp)
                 } else if (col.includes("user_role")) {
                     temp = temp.replace("user_role.", "")
+                    if (temp == "created_at") temp = "createdAt"
                     userRoleCol.push(temp)
                 }
             })
             userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
                 return !(val.includes("user_role"))
             })
+            for (var i in userOptions) {
+                for (var j in userOptions[i].columns) {
+                    if (userOptions[i].columns[j] == "created_at") {
+                        userOptions[i].columns[j] = "createdAt"
+                    }
+                }
+            }
             if (userRoleCol.length > 0) {
                 userRoleOptions.push({
                     columns: userRoleCol,

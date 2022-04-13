@@ -12,60 +12,78 @@ class UserService {
     }
 
     async getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size) {
-        const checkQueryEmpty = (query) => {
-            return query[Op.and] == undefined
-        }
-        if (checkQueryEmpty(userRoleQuery) && (!checkQueryEmpty(userQuery) || !checkQueryEmpty(userRoleTypeQuery))) {
-            let output = []
-            if (!checkQueryEmpty(userQuery)) {
-                const user = await this._User.findAll({
-                    where: userQuery,
-                    attributes: ['userId', 'username', 'email', 'createdAt'],
-                    limit: size,
-                    offset: (page - 1) * size
-                })
-                if (user.length > 0) output.push(user)
-            }
-            if (!checkQueryEmpty(userRoleTypeQuery)) {
-                const role = await this._User_Role_Type.findAll({
-                    where: userRoleTypeQuery,
-                    limit: size,
-                    offset: (page - 1) * size
-                })
-                if (role.length > 0) output.push(role)
-            }
-            return output
-        }
-        return await this._User_Role.findAll({
-            where: userRoleQuery,
-            include: [{
-                model: this._User,
-                as: "user",
-                attributes: ['userId', 'username', 'email', 'createdAt'],
-                where: userQuery,
-
-            }, {
-                model: this._User_Role_Type,
-                as: "role",
-                where: userRoleTypeQuery
-            }],
+        // const checkQueryEmpty = (query) => {
+        //     return query[Op.and] == undefined
+        // }
+        // if (checkQueryEmpty(userRoleQuery) && (!checkQueryEmpty(userQuery) || !checkQueryEmpty(userRoleTypeQuery))) {
+        //     let output = []
+        //     if (!checkQueryEmpty(userQuery)) {
+        //         const user = await this._User.findAll({
+        //             where: userQuery,
+        //             attributes: ['userId', 'username', 'email', 'createdAt'],
+        //             limit: size,
+        //             offset: (page - 1) * size
+        //         })
+        //         if (user.length > 0) output.push(user)
+        //     }
+        //     if (!checkQueryEmpty(userRoleTypeQuery)) {
+        //         const role = await this._User_Role_Type.findAll({
+        //             where: userRoleTypeQuery,
+        //             limit: size,
+        //             offset: (page - 1) * size
+        //         })
+        //         if (role.length > 0) output.push(role)
+        //     }
+        //     return output
+        // }
+        return await this._User.findAll({
+            where: userQuery,
+            attributes: {
+                exclude: ['password'],
+            },
+            include: {
+                model: this._User_Role,
+                as: "userRole",
+                where: userRoleQuery,
+                include: {
+                    model: this._User_Role_Type,
+                    as: "role",
+                    where: userRoleTypeQuery
+                }
+            },
             limit: size,
             offset: (page - 1) * size
         })
+        // return await this._User_Role.findAll({
+        //     where: userRoleQuery,
+        //     include: [{
+        //         model: this._User,
+        //         as: "user",
+        //         attributes: ['userId', 'username', 'email', 'createdAt'],
+        //         where: userQuery,
+
+        //     }, {
+        //         model: this._User_Role_Type,
+        //         as: "role",
+        //         where: userRoleTypeQuery
+        //     }],
+        //     limit: size,
+        //     offset: (page - 1) * size
+        // })
     }
 
     async addUser(newUser) {
         try {
-            await this._User.create({
+            const userRole = await this._User_Role.create({
+                roleId: newUser.roleId
+            })
+            const user = await this._User.create({
                 username: newUser.username,
                 password: newUser.password,
                 email: newUser.email,
-            }).then(async user => {
-                await this._User_Role.create({
-                    userId: user.userId,
-                    roleId: newUser.roleId
-                })
+                userRoleId: userRole.userRoleId
             })
+            console.log(user)
             return true
         } catch (error) {
             console.log(error)

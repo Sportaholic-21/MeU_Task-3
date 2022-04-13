@@ -8,12 +8,10 @@ function initModels(sequelize) {
   var UserRoleTypeTbl = _UserRoleTypeTbl(sequelize, DataTypes);
   var UserTbl = _UserTbl(sequelize, DataTypes);
 
-  UserRoleTypeTbl.belongsToMany(UserTbl, { as: 'userIdUserTbls', through: UserRoleTbl, foreignKey: "roleId", otherKey: "userId" });
-  UserTbl.belongsToMany(UserRoleTypeTbl, { as: 'roleIdUserRoleTypeTbls', through: UserRoleTbl, foreignKey: "userId", otherKey: "roleId" });
+  UserTbl.belongsTo(UserRoleTbl, { as: "userRole", foreignKey: "userRoleId"});
+  UserRoleTbl.hasMany(UserTbl, { as: "userTbls", foreignKey: "userRoleId"});
   UserRoleTbl.belongsTo(UserRoleTypeTbl, { as: "role", foreignKey: "roleId"});
   UserRoleTypeTbl.hasMany(UserRoleTbl, { as: "userRoleTbls", foreignKey: "roleId"});
-  UserRoleTbl.belongsTo(UserTbl, { as: "user", foreignKey: "userId"});
-  UserTbl.hasMany(UserRoleTbl, { as: "userRoleTbls", foreignKey: "userId"});
 
   return {
     UserRoleTbl,
