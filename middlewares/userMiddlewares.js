@@ -2,9 +2,8 @@ require('dotenv').config()
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 const Op = require('sequelize').Op
-const { dateInput } = require('../helpers/dateInput')
 const { apiResponseFail } = require('../helpers/apiResponseOutput');
-const { queryBuilder } = require('../helpers/queryBuilder')
+const { queryBuilder, createdAtHandler } = require('../helpers/queryBuilder')
 
 
 module.exports.userAuthToken = (req, res, next) => {
@@ -88,53 +87,12 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 columns = argumentColumns.split("|")
             } else {
                 columns.push(argumentColumns)
-                if (argumentColumns.includes("created_at")) {
-                    parameters = dateInput(parameters)
-                    let endDate = new Date("12/31/3000"), startDate = new Date("1/1/1970")
-                    switch (operator) {
-                        case Op.eq:
-                            startDate = parameters
-                            endDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
-                            break;
-                        case Op.lte:
-                            endDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
-                            break;
-                        case Op.lt:
-                            endDate = new Date(parameters.getTime() - 1)
-                            break;
-                        case Op.gt:
-                            startDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000)
-                            break;
-                        case Op.gte:
-                            startDate = parameters
-                            break;
-                        case Op.ne:
-                            endDate = parameters
-                            startDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
-                            break;
-                        default:
-                            return res.status(500).json(apiResponseFail("Operator for createdAt must be >, <, =, >=, <=, !=", "Invalid operator"))
-                    }
-                    columns[0] = "createdAt"
-                    userOptions.push({
-                        columns: columns,
-                        operator: Op.gte,
-                        parameters: startDate
-                    }, {
-                        columns: columns,
-                        operator: Op.lte,
-                        parameters: endDate
-                    })
-                }
             }
-            if (columns.indexOf('createdAt') == -1) {
-                // push proccessed option to next middleware
-                userOptions.push({
-                    columns: columns,
-                    operator: operator,
-                    parameters: parameters
-                })
-            }
+            userOptions.push({
+                columns: columns,
+                operator: operator,
+                parameters: parameters
+            })
         })
         for (var i in userOptions) {
             let userRoleCol = []
@@ -145,28 +103,28 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 })
             }
             userOptions[i].columns.forEach(function (col) {
+                if (col.includes("_tbl")) col = col.replace(/_tbl/g, "")
                 let temp = col
-                if (col.includes("_tbl")) temp = temp.replace("_tbl","")
-                if (col.includes("user_role_type")) {
-                    temp = temp.replace("user_role_type.", "")
-                    if (temp == "created_at") temp = "createdAt"
-                    userRoleTypeCol.push(temp)
-                } else if (col.includes("user_role")) {
+                if (col.includes("user_role") && !col.includes("_type")) {
                     temp = temp.replace("user_role.", "")
                     if (temp == "created_at") temp = "createdAt"
                     userRoleCol.push(temp)
+                }
+                if (col.includes("user_role_type")) {
+                    if (col.includes("user_role.")) {
+                        temp = temp.replace("user_role.user_role_type.", "")
+                        if (temp == "created_at") temp = "createdAt"
+                        userRoleTypeCol.push(temp)
+                    } else {
+                        temp = temp.replace("user_role_type.", "")
+                        if (temp == "created_at") temp = "createdAt"
+                        userRoleTypeCol.push(temp)
+                    }
                 }
             })
             userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
                 return !(val.includes("user_role"))
             })
-            for (var i in userOptions) {
-                for (var j in userOptions[i].columns) {
-                    if (userOptions[i].columns[j] == "created_at") {
-                        userOptions[i].columns[j] = "createdAt"
-                    }
-                }
-            }
             if (userRoleCol.length > 0) {
                 userRoleOptions.push({
                     columns: userRoleCol,
@@ -182,6 +140,35 @@ module.exports.handleFilterOptions = async (req, res, next) => {
                 })
             }
             if (userOptions[i].columns.length <= 0) userOptions[i] = {}
+            else {
+                for (var i in userOptions) {
+                    for (var j in userOptions[i].columns) {
+                        if (userOptions[i].columns[j] == "created_at") {
+                            const createdAtArr = createdAtHandler(userOptions[i].parameters, userOptions[i].operator)
+                            if (createdAtArr.length > 0) userOptions[i].columns[j] = createdAtArr
+                            else userOptions[i].columns[j] = "createdAt"
+                        }
+                    }
+                }
+            }
+            for (var i in userRoleOptions) {
+                for (var j in userRoleOptions[i].columns) {
+                    if (userRoleOptions[i].columns[j] == "createdAt") {
+                        const createdAtArr = createdAtHandler(userRoleOptions[i].parameters, userRoleOptions[i].operator)
+                        if (createdAtArr.length > 0) userRoleOptions[i].columns[j] = createdAtArr
+                        else userRoleOptions[i].columns[j] = "createdAt"
+                    }
+                }
+            }
+            for (var i in userRoleTypeOptions) {
+                for (var j in userRoleTypeOptions[i].columns) {
+                    if (userRoleTypeOptions[i].columns[j] == "createdAt") {
+                        const createdAtArr = createdAtHandler(userRoleTypeOptions[i].parameters, userRoleTypeOptions[i].operator)
+                        if (createdAtArr.length > 0) userRoleTypeOptions[i].columns[j] = createdAtArr
+                        else userRoleTypeOptions[i].columns[j] = "createdAt"
+                    }
+                }
+            }
         }
         req.userRoleOptions = userRoleOptions
         req.userRoleTypeOptions = userRoleTypeOptions

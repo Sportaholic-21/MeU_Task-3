@@ -16,6 +16,10 @@ module.exports = function(sequelize, DataTypes) {
         key: 'role_id'
       },
       field: 'role_id'
+    },
+    description: {
+      type: DataTypes.STRING(255),
+      allowNull: false
     }
   }, {
     sequelize,

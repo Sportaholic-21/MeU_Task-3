@@ -36,6 +36,7 @@ pool.query(`SELECT FROM pg_database WHERE datname = '${process.env.DATABASE_NAME
             CREATE TABLE IF NOT EXISTS user_role_tbl (
               user_role_id serial PRIMARY KEY,
               role_id int NOT NULL,
+              description VARCHAR(255) NOT NULL,
               FOREIGN KEY (role_id) REFERENCES user_role_type_tbl(role_id)
             );
 
@@ -53,6 +54,10 @@ pool.query(`SELECT FROM pg_database WHERE datname = '${process.env.DATABASE_NAME
             VALUES 
                 ('admin', 'ad001'), 
                 ('user', 'us001');
+
+            INSERT INTO user_role_tbl(role_id, description) VALUES (1, 'admin manages');
+
+            INSERT INTO user_tbl(username, password, email, user_role_id, created_at) VALUES ('template', 'template', 'template@mail.com', 1, '13-4-2022');
           `
           )
         })
