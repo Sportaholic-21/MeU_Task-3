@@ -32,7 +32,7 @@ module.exports = function (app) {
      *      '403':
      *        description: Forbidden
      */
-    app.get(baseRoute, userController.getAllUser)
+    app.get(baseRoute, middleware.userAuthToken, userController.getAllUser)
 
     /**
      * @swagger
@@ -66,7 +66,7 @@ module.exports = function (app) {
      *      '500':
      *        description: Internal Server Error
      */
-    app.get(baseRoute + "/:filter", middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
+    app.get(baseRoute + "/:filter", middleware.userAuthToken, middleware.handleFilterOptions, middleware.queryBuilder, userController.getAllUser)
 
     /**
      * @swagger

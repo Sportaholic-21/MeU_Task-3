@@ -1,8 +1,60 @@
 const Op = require('sequelize').Op
 const { dateInput } = require('./dateInput')
 
-module.exports.createdAtHandler = (parameters, operator) => {
-    let arr = [], columns = ['createdAt']
+module.exports.paramsProcess = (params) => {
+    let rawOptions = params, options = []
+    rawOptions = rawOptions.split(",") // Spliting "," into separate funcs
+    rawOptions.forEach(option => { // each option and
+        // Identify operator
+        let operator, splitChar
+        let operatorChars = "@_!><="
+        let operatorIndex = option.indexOf("=")
+        if (operatorIndex == -1) {
+            operatorIndex = option.indexOf(">")
+            splitChar = ">"
+            operator = Op.gt
+            if (operatorIndex == -1) {
+                operatorIndex = option.indexOf("<")
+                if (operatorIndex == -1) throw new Error("No arguments was found")
+                splitChar = "<"
+                operator = Op.lt
+            }
+        } else {
+            let temp = option.charAt(operatorIndex - 1)
+            if (operatorChars.includes(temp)) {
+                if (temp == "!") operator = Op.ne
+                if (temp == ">") operator = Op.gte
+                if (temp == "<") operator = Op.lte
+                if (temp == "@") operator = Op.substring
+                if (temp == "_") operator = Op.startsWith
+                splitChar = temp + "="
+            } else if (option.charAt(operatorIndex + 1) == "=") {
+                operator = Op.eq
+                splitChar = "=="
+            } else throw new Error("The argument is missing an operator")
+        }
+        // Separate column, operator & parameter
+        let splitOptions = option.split(splitChar)
+        let argumentColumns = splitOptions[0], parameters = splitOptions[1]
+        argumentColumns = argumentColumns.replace('(', '').replace(')', '')
+        // split columns if more than 1
+        let columns = []
+        if (argumentColumns.includes("|")) {
+            columns = argumentColumns.split("|")
+        } else {
+            columns.push(argumentColumns)
+        }
+        options.push({
+            columns: columns,
+            operator: operator,
+            parameters: parameters
+        })
+    })
+    return options
+}
+
+const createdAtHandler = (column, parameters, operator) => {
+    let arr = [], columns = [column.replace('created_at', 'createdAt')]
     parameters = dateInput(parameters)
     let endDate = new Date("12/31/3000"), startDate = new Date("1/1/1970")
     switch (operator) {
@@ -33,11 +85,94 @@ module.exports.createdAtHandler = (parameters, operator) => {
         operator: Op.gte,
         parameters: startDate
     }, {
-        columns: columns,
+        columns: ['createdAt'],
         operator: Op.lte,
         parameters: endDate
     })
     return arr
+}
+
+
+module.exports.queryTableSeparation = (options) => {
+    let userOptions = options
+    let userRoleOptions = [], userRoleTypeOptions = [], userRoleCol = [], userRoleTypeCol = []
+
+    for (var i in userOptions) {
+        for (var col in userOptions[i].columns) {
+            if (userOptions[i].columns[col].includes("_tbl")) userOptions[i].columns[col] = userOptions[i].columns[col].replace(/_tbl/g, "")
+
+            if (userOptions[i].columns[col].includes("created_at") || userOptions[i].columns[col].includes("createdAt")) {
+                const createdAtArr = createdAtHandler(userOptions[i].columns[col], userOptions[i].parameters, userOptions[i].operator)
+                if (createdAtArr.length > 0) {
+                    let temp = createdAtArr[0].columns[0]
+                    if (temp.includes("user_role.user_role_type.")) {
+                        createdAtArr[0].columns[0] = "$".concat(
+                            createdAtArr[0].columns[0].replace("user_role.user_role_type.", "userRole.role."), 
+                            "$"
+                        )
+                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
+                        userOptions[i].columns[col] = createdAtArr
+                        continue;
+                    } else if (temp.includes("user_role_type")) {
+                        createdAtArr[0].columns[0] = temp.replace("user_role_type_", "")
+                        userRoleTypeCol.push(createdAtArr)
+                        continue;
+                    } else if (temp.includes("user_role")) {
+                        createdAtArr[0].columns[0] = temp.replace("user_role_", "")
+                        userRoleCol.push(createdAtArr[0].columns[0])
+                        continue;
+                    }
+                    userOptions[i].columns[col] = createdAtArr
+                }
+                else userOptions[i].columns[col].replace("created_at", "createdAt")
+            }
+
+            if (userOptions[i].columns[col].includes("user_role.user_role_type.")) {
+                userOptions[i].columns[col] = "$userRole.role".concat(
+                    userOptions[i].columns[col].replace("user_role.user_role_type", ""),
+                    "$"
+                )
+                continue;
+            }
+
+            let temp = userOptions[i].columns[col]
+            if (temp.includes("user_role_type")) {
+                temp = temp.replace("user_role_type_", "")
+                userRoleTypeCol.push(temp)
+            } else if (temp.includes("user_role")) {
+                temp = temp.replace("user_role_", "")
+                userRoleCol.push(temp)
+            }
+        }
+
+        userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
+            return (val.includes("$") || !(val.includes("user_role")))
+        })
+
+        if (userRoleCol.length > 0) {
+            userRoleOptions.push({
+                columns: userRoleCol,
+                operator: userOptions[i].operator,
+                parameters: userOptions[i].parameters
+            })
+        }
+
+        if (userRoleTypeCol.length > 0) {
+            userRoleTypeOptions.push({
+                columns: userRoleTypeCol,
+                operator: userOptions[i].operator,
+                parameters: userOptions[i].parameters
+            })
+        }
+
+        if (userOptions[i].columns.length <= 0) userOptions[i] = {}
+    }
+
+    return {
+        userOptions,
+        userRoleOptions,
+        userRoleTypeOptions
+    }
 }
 
 module.exports.queryBuilder = (filterOption) => {
@@ -117,7 +252,7 @@ module.exports.queryBuilder = (filterOption) => {
             } else {
                 optionQuery = condition(index.columns[0], index.operator, index.parameters)
             }
-            
+
         }
         optionAnd.push(optionQuery)
     }
