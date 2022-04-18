@@ -95,7 +95,6 @@ const createdAtHandler = (column, parameters, operator) => {
 
 module.exports.queryTableSeparation = (options) => {
     let userOptions = options
-    let userRoleOptions = [], userRoleTypeOptions = [], userRoleCol = [], userRoleTypeCol = []
 
     for (var i in userOptions) {
         for (var col in userOptions[i].columns) {
@@ -107,19 +106,27 @@ module.exports.queryTableSeparation = (options) => {
                     let temp = createdAtArr[0].columns[0]
                     if (temp.includes("user_role.user_role_type.")) {
                         createdAtArr[0].columns[0] = "$".concat(
-                            createdAtArr[0].columns[0].replace("user_role.user_role_type.", "userRole.role."), 
+                            createdAtArr[0].columns[0].replace("user_role.user_role_type.", "userRole.role."),
                             "$"
                         )
                         createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
                         userOptions[i].columns[col] = createdAtArr
                         continue;
                     } else if (temp.includes("user_role_type")) {
-                        createdAtArr[0].columns[0] = temp.replace("user_role_type_", "")
-                        userRoleTypeCol.push(createdAtArr)
+                        createdAtArr[0].columns[0] = "$".concat(
+                            createdAtArr[0].columns[0].replace("user_role_type.", "userRole.role."),
+                            "$"
+                        )
+                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
+                        userOptions[i].columns[col] = createdAtArr
                         continue;
                     } else if (temp.includes("user_role")) {
-                        createdAtArr[0].columns[0] = temp.replace("user_role_", "")
-                        userRoleCol.push(createdAtArr[0].columns[0])
+                        createdAtArr[0].columns[0] = "$".concat(
+                            createdAtArr[0].columns[0].replace("user_role", "userRole."),
+                            "$"
+                        )
+                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
+                        userOptions[i].columns[col] = createdAtArr
                         continue;
                     }
                     userOptions[i].columns[col] = createdAtArr
@@ -132,16 +139,16 @@ module.exports.queryTableSeparation = (options) => {
                     userOptions[i].columns[col].replace("user_role.user_role_type", ""),
                     "$"
                 )
-                continue;
-            }
-
-            let temp = userOptions[i].columns[col]
-            if (temp.includes("user_role_type")) {
-                temp = temp.replace("user_role_type_", "")
-                userRoleTypeCol.push(temp)
-            } else if (temp.includes("user_role")) {
-                temp = temp.replace("user_role_", "")
-                userRoleCol.push(temp)
+            } else if (userOptions[i].columns[col].includes("user_role_type.")) {
+                userOptions[i].columns[col] = "$userRole.role".concat(
+                    userOptions[i].columns[col].replace("user_role_type", ""),
+                    "$"
+                )
+            } else if (userOptions[i].columns[col].includes("user_role.")) {
+                userOptions[i].columns[col] = "$userRole".concat(
+                    userOptions[i].columns[col].replace("user_role", ""),
+                    "$"
+                )
             }
         }
 
@@ -149,30 +156,10 @@ module.exports.queryTableSeparation = (options) => {
             return (val.includes("$") || !(val.includes("user_role")))
         })
 
-        if (userRoleCol.length > 0) {
-            userRoleOptions.push({
-                columns: userRoleCol,
-                operator: userOptions[i].operator,
-                parameters: userOptions[i].parameters
-            })
-        }
-
-        if (userRoleTypeCol.length > 0) {
-            userRoleTypeOptions.push({
-                columns: userRoleTypeCol,
-                operator: userOptions[i].operator,
-                parameters: userOptions[i].parameters
-            })
-        }
-
         if (userOptions[i].columns.length <= 0) userOptions[i] = {}
     }
 
-    return {
-        userOptions,
-        userRoleOptions,
-        userRoleTypeOptions
-    }
+    return userOptions
 }
 
 module.exports.queryBuilder = (filterOption) => {

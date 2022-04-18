@@ -11,31 +11,8 @@ class UserService {
         return await this._User.count()
     }
 
-    async getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size) {
-        // const checkQueryEmpty = (query) => {
-        //     return query[Op.and] == undefined
-        // }
-        // if (checkQueryEmpty(userRoleQuery) && (!checkQueryEmpty(userQuery) || !checkQueryEmpty(userRoleTypeQuery))) {
-        //     let output = []
-        //     if (!checkQueryEmpty(userQuery)) {
-        //         const user = await this._User.findAll({
-        //             where: userQuery,
-        //             attributes: ['userId', 'username', 'email', 'createdAt'],
-        //             limit: size,
-        //             offset: (page - 1) * size
-        //         })
-        //         if (user.length > 0) output.push(user)
-        //     }
-        //     if (!checkQueryEmpty(userRoleTypeQuery)) {
-        //         const role = await this._User_Role_Type.findAll({
-        //             where: userRoleTypeQuery,
-        //             limit: size,
-        //             offset: (page - 1) * size
-        //         })
-        //         if (role.length > 0) output.push(role)
-        //     }
-        //     return output
-        // }
+    async getAllUsers(userQuery, page, size) {
+
         return await this._User.findAll({
             where: userQuery,
             attributes: {
@@ -44,11 +21,9 @@ class UserService {
             include: {
                 model: this._User_Role,
                 as: "userRole",
-                where: userRoleQuery,
                 include: {
                     model: this._User_Role_Type,
                     as: "role",
-                    where: userRoleTypeQuery
                 }
             },
             limit: size,

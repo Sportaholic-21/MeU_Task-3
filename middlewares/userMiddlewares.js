@@ -45,10 +45,8 @@ module.exports.handleFilterOptions = async (req, res, next) => {
             return res.redirect('../users?' + query)
         }
         let options = queryTableSeparation(paramsProcess(rawOptions))
-        
-        req.userRoleOptions = options.userRoleOptions
-        req.userRoleTypeOptions = options.userRoleTypeOptions
-        req.userOptions = options.userOptions
+
+        req.userOptions = options
         next()
     } catch (error) {
         return res.status(500).json(apiResponseFail("Unable to proccess filter options", error.toString()))
@@ -58,8 +56,6 @@ module.exports.handleFilterOptions = async (req, res, next) => {
 module.exports.queryBuilder = async (req, res, next) => {
     try {
         req.userQuery = queryBuilder(req.userOptions)
-        req.userRoleQuery = queryBuilder(req.userRoleOptions)
-        req.userRoleTypeQuery = queryBuilder(req.userRoleTypeOptions)
         next()
     } catch (error) {
         return res.status(500).json(apiResponseFail("Failed to create query", error.toString()))

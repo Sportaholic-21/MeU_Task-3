@@ -16,9 +16,8 @@ module.exports.getAllUser = async (req, res) => {
         const page = req.query.page || 1
         const size = req.query.size || 10
         const userQuery = req.userQuery || {}
-        const userRoleQuery = req.userRoleQuery || {}
-        const userRoleTypeQuery = req.userRoleTypeQuery || {}
-        const users = await userService.getAllUsers(userQuery, userRoleQuery, userRoleTypeQuery, page, size)
+
+        const users = await userService.getAllUsers(userQuery, page, size)
         const count = users.length
         const totalPages = Math.ceil(users.length / size)
         message = "Sucessfully retrieved data"
@@ -26,7 +25,7 @@ module.exports.getAllUser = async (req, res) => {
             count: count,
             rows: users,
             totalPages: totalPages,
-            currentPage: (userRoleQuery.length > 0 && count == 0) ? 0 : totalPages
+            currentPage: (userQuery.length > 0 && count == 0) ? 0 : totalPages
         }
         return res.status(200).json(apiResponseSuccess(message, responseData))
     } catch (error) {
