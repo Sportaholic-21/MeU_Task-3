@@ -92,74 +92,76 @@ const createdAtHandler = (column, parameters, operator) => {
     return arr
 }
 
+const eagerQuerySyntax = (column) => {
+    if (column.includes("user_role_type")) return "userRole.role."
+    if (column.includes("user_role")) return "userRole."
+    return ""
+}
+
 
 module.exports.queryTableSeparation = (options) => {
     let userOptions = options
 
     for (var i in userOptions) {
         for (var col in userOptions[i].columns) {
-            if (userOptions[i].columns[col].includes("_tbl")) userOptions[i].columns[col] = userOptions[i].columns[col].replace(/_tbl/g, "")
-
-            if (userOptions[i].columns[col].includes("created_at") || userOptions[i].columns[col].includes("createdAt")) {
-                const createdAtArr = createdAtHandler(userOptions[i].columns[col], userOptions[i].parameters, userOptions[i].operator)
-                if (createdAtArr.length > 0) {
-                    let temp = createdAtArr[0].columns[0]
-                    if (temp.includes("user_role.user_role_type.")) {
-                        createdAtArr[0].columns[0] = "$".concat(
-                            createdAtArr[0].columns[0].replace("user_role.user_role_type.", "userRole.role."),
-                            "$"
-                        )
-                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
-                        userOptions[i].columns[col] = createdAtArr
-                        continue;
-                    } else if (temp.includes("user_role_type")) {
-                        createdAtArr[0].columns[0] = "$".concat(
-                            createdAtArr[0].columns[0].replace("user_role_type.", "userRole.role."),
-                            "$"
-                        )
-                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
-                        userOptions[i].columns[col] = createdAtArr
-                        continue;
-                    } else if (temp.includes("user_role")) {
-                        createdAtArr[0].columns[0] = "$".concat(
-                            createdAtArr[0].columns[0].replace("user_role", "userRole."),
-                            "$"
-                        )
-                        createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
-                        userOptions[i].columns[col] = createdAtArr
-                        continue;
-                    }
-                    userOptions[i].columns[col] = createdAtArr
-                }
-                else userOptions[i].columns[col].replace("created_at", "createdAt")
+            if (userOptions[i].columns[col].includes("_tbl")) {
+                userOptions[i].columns[col] = userOptions[i].columns[col].replace(/_tbl/g, "")
             }
 
-            if (userOptions[i].columns[col].includes("user_role.user_role_type.")) {
-                userOptions[i].columns[col] = "$userRole.role".concat(
-                    userOptions[i].columns[col].replace("user_role.user_role_type", ""),
-                    "$"
+            let syntax = "", split, column
+            if (userOptions[i].columns[col].includes("created_at") ||
+                userOptions[i].columns[col].includes("createdAt")) {
+                    
+                const createdAtArr = createdAtHandler(
+                    userOptions[i].columns[col],
+                    userOptions[i].parameters,
+                    userOptions[i].operator
                 )
-            } else if (userOptions[i].columns[col].includes("user_role_type.")) {
-                userOptions[i].columns[col] = "$userRole.role".concat(
-                    userOptions[i].columns[col].replace("user_role_type", ""),
-                    "$"
-                )
-            } else if (userOptions[i].columns[col].includes("user_role.")) {
-                userOptions[i].columns[col] = "$userRole".concat(
-                    userOptions[i].columns[col].replace("user_role", ""),
-                    "$"
-                )
+                split = createdAtArr[0].columns[0].split(".")
+                column = split[split.length - 1]
+                syntax = eagerQuerySyntax(createdAtArr[0].columns[0])
+                if (syntax.length > 0) createdAtArr[0].columns[0] = "$".concat(syntax, column, "$")
+                createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
+                userOptions[i].columns[col] = createdAtArr
+                continue
             }
+
+            syntax = eagerQuerySyntax(userOptions[i].columns[col])
+            split = userOptions[i].columns[col].split(".")
+            column = split[split.length - 1]
+            if (syntax.length > 0) userOptions[i].columns[col] = "$".concat(syntax, column, "$")
         }
-
-        userOptions[i].columns = userOptions[i].columns.filter(function (val, i, arr) {
-            return (val.includes("$") || !(val.includes("user_role")))
-        })
 
         if (userOptions[i].columns.length <= 0) userOptions[i] = {}
     }
 
     return userOptions
+}
+
+const queryCreatedAt = (column) => {
+    if (Array.isArray(column)) {
+        // For if created at Not equal
+        let createdAtObj = {}
+        if (column[0].parameters > column[1].parameters) {
+            createdAtObj = {
+                [Op.not]: {
+                    [Op.and]: [
+                        condition("createdAt", column[0].operator, column[1].parameters),
+                        condition("createdAt", column[1].operator, column[0].parameters)
+                    ]
+                }
+            }
+        } else {
+            createdAtObj = {
+                [Op.and]: [
+                    condition("createdAt", column[0].operator, column[0].parameters),
+                    condition("createdAt", column[1].operator, column[1].parameters)
+                ]
+            }
+        }
+        return createdAtObj
+    }
+    return undefined
 }
 
 module.exports.queryBuilder = (filterOption) => {
@@ -184,29 +186,12 @@ module.exports.queryBuilder = (filterOption) => {
     for (optionIndex; optionIndex < filterOption.length; optionIndex++) {
         let index = filterOption[optionIndex]
         let optionQuery = {}
+
         if (index.columns.length > 1) {
             for (var col in index.columns) {
                 let column = index.columns[col]
-                if (Array.isArray(column)) {
-                    // For if created at Not equal
-                    let createdAtObj = {}
-                    if (column[0].parameters > column[1].parameters) {
-                        createdAtObj = {
-                            [Op.not]: {
-                                [Op.and]: [
-                                    condition("createdAt", column[0].operator, column[1].parameters),
-                                    condition("createdAt", column[1].operator, column[0].parameters)
-                                ]
-                            }
-                        }
-                    } else {
-                        createdAtObj = {
-                            [Op.and]: [
-                                condition("createdAt", column[0].operator, column[0].parameters),
-                                condition("createdAt", column[1].operator, column[1].parameters)
-                            ]
-                        }
-                    }
+                let createdAtObj = queryCreatedAt(column)
+                if (createdAtObj != undefined) {
                     optionOr.push(createdAtObj)
                 } else optionOr.push(condition(index.columns[col], index.operator, index.parameters))
             }
@@ -214,32 +199,10 @@ module.exports.queryBuilder = (filterOption) => {
                 [Op.or]: optionOr
             }
         } else {
-            let column = index.columns[0]
-            if (Array.isArray(column)) {
-                // For if created at Not equal
-                let createdAtObj = {}
-                if (column[0].parameters > column[1].parameters) {
-                    createdAtObj = {
-                        [Op.not]: {
-                            [Op.and]: [
-                                condition("createdAt", column[0].operator, column[1].parameters),
-                                condition("createdAt", column[1].operator, column[0].parameters)
-                            ]
-                        }
-                    }
-                } else {
-                    createdAtObj = {
-                        [Op.and]: [
-                            condition("createdAt", column[0].operator, column[0].parameters),
-                            condition("createdAt", column[1].operator, column[1].parameters)
-                        ]
-                    }
-                }
+            let column = index.columns[0], createdAtObj = queryCreatedAt(column)
+            if (createdAtObj != undefined) {
                 optionQuery = createdAtObj
-            } else {
-                optionQuery = condition(index.columns[0], index.operator, index.parameters)
-            }
-
+            } else optionQuery = condition(index.columns[0], index.operator, index.parameters)
         }
         optionAnd.push(optionQuery)
     }
