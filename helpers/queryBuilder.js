@@ -10,6 +10,7 @@ module.exports.paramsProcess = (params) => {
         let operatorChars = "@_!><="
         let operatorIndex = option.indexOf("=")
         if (operatorIndex == -1) {
+            // Case greater than / less than
             operatorIndex = option.indexOf(">")
             splitChar = ">"
             operator = Op.gt
@@ -20,6 +21,7 @@ module.exports.paramsProcess = (params) => {
                 operator = Op.lt
             }
         } else {
+            // Cases that involve "="
             let temp = option.charAt(operatorIndex - 1)
             if (operatorChars.includes(temp)) {
                 if (temp == "!") operator = Op.ne
@@ -111,7 +113,7 @@ module.exports.queryTableSeparation = (options) => {
             let syntax = "", split, column
             if (userOptions[i].columns[col].includes("created_at") ||
                 userOptions[i].columns[col].includes("createdAt")) {
-                    
+
                 const createdAtArr = createdAtHandler(
                     userOptions[i].columns[col],
                     userOptions[i].parameters,
