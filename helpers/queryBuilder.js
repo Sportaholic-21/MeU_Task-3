@@ -140,31 +140,6 @@ module.exports.queryTableSeparation = (options) => {
     return userOptions
 }
 
-const queryCreatedAt = (column) => {
-    if (Array.isArray(column)) {
-        // For if created at Not equal
-        let createdAtObj = {}
-        if (column[0].parameters > column[1].parameters) {
-            createdAtObj = {
-                [Op.not]: {
-                    [Op.and]: [
-                        condition("createdAt", column[0].operator, column[1].parameters),
-                        condition("createdAt", column[1].operator, column[0].parameters)
-                    ]
-                }
-            }
-        } else {
-            createdAtObj = {
-                [Op.and]: [
-                    condition("createdAt", column[0].operator, column[0].parameters),
-                    condition("createdAt", column[1].operator, column[1].parameters)
-                ]
-            }
-        }
-        return createdAtObj
-    }
-    return undefined
-}
 
 module.exports.queryBuilder = (filterOption) => {
     if (filterOption.length == 0 || (filterOption.length == 1 && Object.keys(filterOption[0]).length == 0)) {
@@ -183,6 +158,31 @@ module.exports.queryBuilder = (filterOption) => {
                 [operator]: parameter
             }
         }
+    }
+    const queryCreatedAt = (column) => {
+        if (Array.isArray(column)) {
+            // For if created at Not equal
+            let createdAtObj = {}
+            if (column[0].parameters > column[1].parameters) {
+                createdAtObj = {
+                    [Op.not]: {
+                        [Op.and]: [
+                            condition("createdAt", column[0].operator, column[1].parameters),
+                            condition("createdAt", column[1].operator, column[0].parameters)
+                        ]
+                    }
+                }
+            } else {
+                createdAtObj = {
+                    [Op.and]: [
+                        condition("createdAt", column[0].operator, column[0].parameters),
+                        condition("createdAt", column[1].operator, column[1].parameters)
+                    ]
+                }
+            }
+            return createdAtObj
+        }
+        return undefined
     }
     let optionIndex = 0
     for (optionIndex; optionIndex < filterOption.length; optionIndex++) {
