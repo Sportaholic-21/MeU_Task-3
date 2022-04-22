@@ -18,12 +18,12 @@ module.exports.getAllUser = async (req, res) => {
         const userQuery = req.userQuery || {}
 
         const users = await userService.getAllUsers(userQuery, page, size)
-        const count = users.length
-        const totalPages = Math.ceil(users.length / size)
+        const count = users.count
+        const totalPages = Math.ceil(users.count / size)
         message = "Sucessfully retrieved data"
         responseData = {
             count: count,
-            rows: users,
+            rows: users.rows,
             totalPages: totalPages,
             currentPage: (userQuery.length > 0 && count == 0) ? 0 : totalPages
         }

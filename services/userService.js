@@ -12,8 +12,7 @@ class UserService {
     }
 
     async getAllUsers(userQuery, page, size) {
-
-        return await this._User.findAll({
+        const { count, rows } = await this._User.findAndCountAll({
             where: userQuery,
             attributes: {
                 exclude: ['password'],
@@ -29,6 +28,7 @@ class UserService {
             limit: size,
             offset: (page - 1) * size
         })
+        return { count, rows }
         // return await this._User_Role.findAll({
         //     where: userRoleQuery,
         //     include: [{

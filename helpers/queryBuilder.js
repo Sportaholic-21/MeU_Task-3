@@ -1,5 +1,9 @@
 const Op = require('sequelize').Op
-const { dateInput } = require('./dateInput')
+const { dateInput, isDate } = require('./dateInput')
+const { underscoreToCamelCase, camelCaseToUnderscore } = require('./syntaxHandler')
+var initModels = require("../models/init-models");
+const sequelize = require('../config/sequelize')
+var models = initModels(sequelize);
 
 module.exports.paramsProcess = (params) => {
     let rawOptions = params, options = []
@@ -55,8 +59,8 @@ module.exports.paramsProcess = (params) => {
     return options
 }
 
-const createdAtHandler = (column, parameters, operator) => {
-    let arr = [], columns = [column.replace('created_at', 'createdAt')]
+const dateColumnHandler = (column, parameters, operator) => {
+    let columns = [column], obj
     parameters = dateInput(parameters)
     let endDate = new Date("12/31/3000"), startDate = new Date("1/1/1970")
     switch (operator) {
@@ -82,16 +86,14 @@ const createdAtHandler = (column, parameters, operator) => {
             startDate = new Date(parameters.getTime() + 60 * 60 * 24 * 1000 - 1)
             break;
     }
-    arr.push({
+    let oper = Op.between
+    if (endDate < startDate) oper = Op.notBetween
+    obj = {
         columns: columns,
-        operator: Op.gte,
-        parameters: startDate
-    }, {
-        columns: ['createdAt'],
-        operator: Op.lte,
-        parameters: endDate
-    })
-    return arr
+        operator: oper,
+        parameters: [startDate, endDate]
+    }
+    return obj
 }
 
 const eagerQuerySyntax = (column) => {
@@ -105,33 +107,41 @@ module.exports.queryTableSeparation = (options) => {
     let userOptions = options
 
     for (var i in userOptions) {
+        let dateFlag = isDate(userOptions[i].parameters)
         for (var col in userOptions[i].columns) {
             if (userOptions[i].columns[col].includes("_tbl")) {
                 userOptions[i].columns[col] = userOptions[i].columns[col].replace(/_tbl/g, "")
             }
 
             let syntax = "", split, column
-            if (userOptions[i].columns[col].includes("created_at") ||
-                userOptions[i].columns[col].includes("createdAt")) {
-
-                const createdAtArr = createdAtHandler(
-                    userOptions[i].columns[col],
-                    userOptions[i].parameters,
-                    userOptions[i].operator
-                )
-                split = createdAtArr[0].columns[0].split(".")
-                column = split[split.length - 1]
-                syntax = eagerQuerySyntax(createdAtArr[0].columns[0])
-                if (syntax.length > 0) createdAtArr[0].columns[0] = "$".concat(syntax, column, "$")
-                createdAtArr[1].columns[0] = createdAtArr[0].columns[0]
-                userOptions[i].columns[col] = createdAtArr
-                continue
-            }
-
             syntax = eagerQuerySyntax(userOptions[i].columns[col])
             split = userOptions[i].columns[col].split(".")
-            column = split[split.length - 1]
-            if (syntax.length > 0) userOptions[i].columns[col] = "$".concat(syntax, column, "$")
+            column = underscoreToCamelCase(split[split.length - 1])
+
+            if (syntax.length > 0) userOptions[i].columns[col] = "$".concat(syntax, camelCaseToUnderscore(column), "$")
+            else if (userOptions[i].columns[col].includes("userRole")) {
+                let temp = "$"
+                for (var j = 0; j < split.length - 1; j++) temp = temp.concat(split[j], ".")
+                userOptions[i].columns[col] = temp.concat(camelCaseToUnderscore(column), "$")
+            } else userOptions[i].columns[col] = column
+
+            if (dateFlag) {
+                let temp = userOptions[i].columns[col]
+                let model
+                if (temp.includes("userRole.role")) model = models.UserRoleTypeTbl
+                else if (temp.includes("userRole")) model = models.UserRoleTbl
+                else model = models.UserTbl
+                if (model.tableAttributes[column].type.constructor.key == "DATE") {
+                    const dateColumnObj = dateColumnHandler(
+                        userOptions[i].columns[col],
+                        userOptions[i].parameters,
+                        userOptions[i].operator
+                    )
+                    userOptions[i].columns[col] = dateColumnObj
+                    continue
+                }
+            }
+
         }
 
         if (userOptions[i].columns.length <= 0) userOptions[i] = {}
@@ -159,28 +169,16 @@ module.exports.queryBuilder = (filterOption) => {
             }
         }
     }
-    const queryCreatedAt = (column) => {
-        if (Array.isArray(column)) {
+    const querydateColumn = (column) => {
+        if (
+            typeof column == "object" &&
+            !Array.isArray(column) &&
+            column != null
+        ) {
             // For if created at Not equal
-            let createdAtObj = {}
-            if (column[0].parameters > column[1].parameters) {
-                createdAtObj = {
-                    [Op.not]: {
-                        [Op.and]: [
-                            condition("createdAt", column[0].operator, column[1].parameters),
-                            condition("createdAt", column[1].operator, column[0].parameters)
-                        ]
-                    }
-                }
-            } else {
-                createdAtObj = {
-                    [Op.and]: [
-                        condition("createdAt", column[0].operator, column[0].parameters),
-                        condition("createdAt", column[1].operator, column[1].parameters)
-                    ]
-                }
-            }
-            return createdAtObj
+            let dateColumnObj = {}
+            dateColumnObj = condition(column.columns[0], column.operator, column.parameters)
+            return dateColumnObj
         }
         return undefined
     }
@@ -192,18 +190,18 @@ module.exports.queryBuilder = (filterOption) => {
         if (index.columns.length > 1) {
             for (var col in index.columns) {
                 let column = index.columns[col]
-                let createdAtObj = queryCreatedAt(column)
-                if (createdAtObj != undefined) {
-                    optionOr.push(createdAtObj)
+                let dateColumnObj = querydateColumn(column)
+                if (dateColumnObj != undefined) {
+                    optionOr.push(dateColumnObj)
                 } else optionOr.push(condition(index.columns[col], index.operator, index.parameters))
             }
             optionQuery = {
                 [Op.or]: optionOr
             }
         } else {
-            let column = index.columns[0], createdAtObj = queryCreatedAt(column)
-            if (createdAtObj != undefined) {
-                optionQuery = createdAtObj
+            let column = index.columns[0], dateColumnObj = querydateColumn(column)
+            if (dateColumnObj != undefined) {
+                optionQuery = dateColumnObj
             } else optionQuery = condition(index.columns[0], index.operator, index.parameters)
         }
         optionAnd.push(optionQuery)
