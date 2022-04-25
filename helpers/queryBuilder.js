@@ -1,9 +1,26 @@
 const Op = require('sequelize').Op
 const { dateInput, isDate } = require('./dateInput')
-const { underscoreToCamelCase, camelCaseToUnderscore } = require('./syntaxHandler')
-var initModels = require("../models/init-models");
-const sequelize = require('../config/sequelize')
-var models = initModels(sequelize);
+const { underscoreToCamelCase, camelCaseToUnderscore, countString } = require('./syntaxHandler')
+
+module.exports.modelArrs = (baseModel, arr = []) => {
+    if (arr.length == 0) { 
+        arr.push({ 
+            model: baseModel 
+        }) 
+    }
+    
+    for (i in baseModel.associations) {
+        let association = baseModel.associations[i]
+        if (association.associationType == "BelongsTo") {
+            arr.push({
+                model: association.target,
+                as: association.as
+            })
+            return this.modelArrs(association.target, arr)
+        }
+    }
+    return arr
+}
 
 module.exports.paramsProcess = (params) => {
     let rawOptions = params, options = []
@@ -96,58 +113,65 @@ const dateColumnHandler = (column, parameters, operator) => {
     return obj
 }
 
-const eagerQuerySyntax = (column) => {
-    if (column.includes("user_role_type")) return "userRole.role."
-    if (column.includes("user_role")) return "userRole."
-    return ""
+
+module.exports.buildIncludes = (models) => {
+    const includeSyntax = (model, as) => {
+        return {
+            model: model,
+            as: as
+        }
+    }
+    
+    let include = {}
+    for (var i = 1; i < models.length; i++) {
+        if (Object.keys(include).length == 0) {
+            include = includeSyntax(models[i].model, models[i].as)
+        } else include['include'] = includeSyntax(models[i].model, models[i].as)
+    }
+    return include
 }
 
+module.exports.queryTableSeparation = (models, options) => {
 
-module.exports.queryTableSeparation = (options) => {
-    let userOptions = options
-
-    for (var i in userOptions) {
-        let dateFlag = isDate(userOptions[i].parameters)
-        for (var col in userOptions[i].columns) {
-            if (userOptions[i].columns[col].includes("_tbl")) {
-                userOptions[i].columns[col] = userOptions[i].columns[col].replace(/_tbl/g, "")
+    for (var i in options) {
+        let dateFlag = isDate(options[i].parameters)
+        for (var col in options[i].columns) {
+            if (options[i].columns[col].includes("_tbl")) {
+                options[i].columns[col] = options[i].columns[col].replace(/_tbl/g, "")
             }
 
-            let syntax = "", split, column
-            syntax = eagerQuerySyntax(userOptions[i].columns[col])
-            split = userOptions[i].columns[col].split(".")
+            let split, column
+            // syntax = eagerQuerySyntax(options[i].columns[col])
+            split = options[i].columns[col].split(".")
             column = underscoreToCamelCase(split[split.length - 1])
 
-            if (syntax.length > 0) userOptions[i].columns[col] = "$".concat(syntax, camelCaseToUnderscore(column), "$")
-            else if (userOptions[i].columns[col].includes("userRole")) {
+            if (split.length == 1) options[i].columns[col] = column
+            else {
                 let temp = "$"
-                for (var j = 0; j < split.length - 1; j++) temp = temp.concat(split[j], ".")
-                userOptions[i].columns[col] = temp.concat(camelCaseToUnderscore(column), "$")
-            } else userOptions[i].columns[col] = column
+                for (var j = 0; j < split.length - 1; j++) temp = temp.concat(models[j + 1].as, ".")
+                options[i].columns[col] = temp.concat(camelCaseToUnderscore(column), "$")
+            }
 
             if (dateFlag) {
-                let temp = userOptions[i].columns[col]
-                let model
-                if (temp.includes("userRole.role")) model = models.UserRoleTypeTbl
-                else if (temp.includes("userRole")) model = models.UserRoleTbl
-                else model = models.UserTbl
+                let temp = options[i].columns[col]
+                let model = models[countString(temp, ".")].model
                 if (model.tableAttributes[column].type.constructor.key == "DATE") {
                     const dateColumnObj = dateColumnHandler(
-                        userOptions[i].columns[col],
-                        userOptions[i].parameters,
-                        userOptions[i].operator
+                        options[i].columns[col],
+                        options[i].parameters,
+                        options[i].operator
                     )
-                    userOptions[i].columns[col] = dateColumnObj
+                    options[i].columns[col] = dateColumnObj
                     continue
                 }
             }
 
         }
 
-        if (userOptions[i].columns.length <= 0) userOptions[i] = {}
+        if (options[i].columns.length <= 0) options[i] = {}
     }
 
-    return userOptions
+    return options
 }
 
 

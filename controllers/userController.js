@@ -16,8 +16,9 @@ module.exports.getAllUser = async (req, res) => {
         const page = req.query.page || 1
         const size = req.query.size || 10
         const userQuery = req.userQuery || {}
+        const includes = req.includes || {}
 
-        const users = await userService.getAllUsers(userQuery, page, size)
+        const users = await userService.getAllUsers(userQuery, includes, page, size)
         const count = users.count
         const totalPages = Math.ceil(users.count / size)
         message = "Sucessfully retrieved data"

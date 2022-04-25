@@ -3,7 +3,11 @@ const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
 const Op = require('sequelize').Op
 const { apiResponseFail } = require('../helpers/apiResponseOutput');
-const { queryBuilder, paramsProcess, queryTableSeparation } = require('../helpers/queryBuilder')
+const { queryBuilder, paramsProcess, queryTableSeparation, modelArrs, buildIncludes } = require('../helpers/queryBuilder')
+
+var initModels = require("../models/init-models");
+const sequelize = require('../config/sequelize')
+var models = initModels(sequelize);
 
 
 module.exports.userAuthToken = (req, res, next) => {
@@ -44,9 +48,13 @@ module.exports.handleFilterOptions = async (req, res, next) => {
             }
             return res.redirect('../users?' + query)
         }
-        let options = queryTableSeparation(paramsProcess(rawOptions))
+        const userModels = modelArrs(models.UserTbl)
+        let options = queryTableSeparation(userModels, paramsProcess(rawOptions))
+        let includes = buildIncludes(userModels)
+        console.log(includes)
 
         req.userOptions = options
+        req.includes = includes
         next()
     } catch (error) {
         return res.status(500).json(apiResponseFail("Unable to proccess filter options", error.toString()))
