@@ -3,12 +3,12 @@ const { dateInput, isDate } = require('./dateInput')
 const { underscoreToCamelCase, camelCaseToUnderscore, countString } = require('./syntaxHandler')
 
 module.exports.modelArrs = (baseModel, arr = []) => {
-    if (arr.length == 0) { 
-        arr.push({ 
-            model: baseModel 
-        }) 
+    if (arr.length == 0) {
+        arr.push({
+            model: baseModel
+        })
     }
-    
+
     for (i in baseModel.associations) {
         let association = baseModel.associations[i]
         if (association.associationType == "BelongsTo") {
@@ -58,17 +58,11 @@ module.exports.paramsProcess = (params) => {
         }
         // Separate column, operator & parameter
         let splitOptions = option.split(splitChar)
-        let argumentColumns = splitOptions[0], parameters = splitOptions[1]
-        argumentColumns = argumentColumns.replace('(', '').replace(')', '')
-        // split columns if more than 1
-        let columns = []
-        if (argumentColumns.includes("|")) {
-            columns = argumentColumns.split("|")
-        } else {
-            columns.push(argumentColumns)
-        }
+        let columns = splitOptions[0], parameters = splitOptions[1]
+        columns = columns.replace('(', '').replace(')', '')
+
         options.push({
-            columns: columns,
+            columns: columns.split("|"),
             operator: operator,
             parameters: parameters
         })
@@ -121,7 +115,7 @@ module.exports.buildIncludes = (models) => {
             as: as
         }
     }
-    
+
     let include = {}
     for (var i = 1; i < models.length; i++) {
         if (Object.keys(include).length == 0) {
@@ -136,25 +130,30 @@ module.exports.queryTableSeparation = (models, options) => {
     for (var i in options) {
         let dateFlag = isDate(options[i].parameters)
         for (var col in options[i].columns) {
-            if (options[i].columns[col].includes("_tbl")) {
-                options[i].columns[col] = options[i].columns[col].replace(/_tbl/g, "")
-            }
 
-            let split, column
-            // syntax = eagerQuerySyntax(options[i].columns[col])
-            split = options[i].columns[col].split(".")
-            column = underscoreToCamelCase(split[split.length - 1])
+            options[i].columns[col] = underscoreToCamelCase(options[i].columns[col])
+
+
+            let split, column, colSyntax
+            colSyntax = options[i].columns[col]
+            split = colSyntax.split(".")
+            column = split[split.length - 1]
 
             if (split.length == 1) options[i].columns[col] = column
             else {
                 let temp = "$"
-                for (var j = 0; j < split.length - 1; j++) temp = temp.concat(models[j + 1].as, ".")
+                for (var j = 0; j < split.length - 1; j++) {
+                    if (
+                        split[j] == models[j + 1].as ||
+                        split[j].toLowerCase() == models[j + 1].model.name.toLowerCase()
+                    ) temp = temp.concat(models[j + 1].as, ".")
+                    else throw new Error("Invalid eager syntax. Have your syntax either match table name or its alias")
+                }
                 options[i].columns[col] = temp.concat(camelCaseToUnderscore(column), "$")
             }
 
             if (dateFlag) {
-                let temp = options[i].columns[col]
-                let model = models[countString(temp, ".")].model
+                let model = models[countString(colSyntax, ".")].model
                 if (model.tableAttributes[column].type.constructor.key == "DATE") {
                     const dateColumnObj = dateColumnHandler(
                         options[i].columns[col],

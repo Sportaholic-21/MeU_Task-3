@@ -51,7 +51,6 @@ module.exports.handleFilterOptions = async (req, res, next) => {
         const userModels = modelArrs(models.UserTbl)
         let options = queryTableSeparation(userModels, paramsProcess(rawOptions))
         let includes = buildIncludes(userModels)
-        console.log(includes)
 
         req.userOptions = options
         req.includes = includes
