@@ -6,6 +6,10 @@ module.exports.camelCaseToUnderscore = (string) => {
     return string.replace(/([a-z][A-Z])/g, function (g) { return g[0] + '_' + g[1].toLowerCase() })
 }
 
+module.exports.firstLetterUppercase = (string) => {
+    return string.charAt(0).toUpperCase() + string.slice(1)
+}
+
 module.exports.countString = (str, letter) => {
     let count = 0;
 

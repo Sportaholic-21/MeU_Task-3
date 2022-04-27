@@ -1,5 +1,3 @@
-const Op = require("sequelize").Op
-
 class UserService {
     constructor(models) {
         this._User = models.UserTbl
@@ -12,7 +10,6 @@ class UserService {
     }
 
     async getAllUsers(userQuery, includes, page, size) {
-        console.log(includes)
         const { count, rows } = await this._User.findAndCountAll({
             where: userQuery,
             attributes: {
@@ -23,22 +20,6 @@ class UserService {
             offset: (page - 1) * size
         })
         return { count, rows }
-        // return await this._User_Role.findAll({
-        //     where: userRoleQuery,
-        //     include: [{
-        //         model: this._User,
-        //         as: "user",
-        //         attributes: ['userId', 'username', 'email', 'createdAt'],
-        //         where: userQuery,
-
-        //     }, {
-        //         model: this._User_Role_Type,
-        //         as: "role",
-        //         where: userRoleTypeQuery
-        //     }],
-        //     limit: size,
-        //     offset: (page - 1) * size
-        // })
     }
 
     async addUser(newUser) {

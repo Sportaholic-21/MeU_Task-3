@@ -1,6 +1,6 @@
 const Op = require('sequelize').Op
 const { dateInput, isDate } = require('./dateInput')
-const { underscoreToCamelCase, camelCaseToUnderscore, countString } = require('./syntaxHandler')
+const { underscoreToCamelCase, camelCaseToUnderscore, countString, firstLetterUppercase } = require('./syntaxHandler')
 
 module.exports.modelArrs = (baseModel, arr = []) => {
     if (arr.length == 0) {
@@ -144,8 +144,8 @@ module.exports.queryTableSeparation = (models, options) => {
                 let temp = "$"
                 for (var j = 0; j < split.length - 1; j++) {
                     if (
-                        split[j] == models[j + 1].as ||
-                        split[j].toLowerCase() == models[j + 1].model.name.toLowerCase()
+                        split[j] == models[j + 1].as || // alias
+                        firstLetterUppercase(split[j]) == models[j + 1].model.name // table name
                     ) temp = temp.concat(models[j + 1].as, ".")
                     else throw new Error("Invalid eager syntax. Have your syntax either match table name or its alias")
                 }
@@ -161,13 +161,10 @@ module.exports.queryTableSeparation = (models, options) => {
                         options[i].operator
                     )
                     options[i].columns[col] = dateColumnObj
-                    continue
                 }
             }
 
         }
-
-        if (options[i].columns.length <= 0) options[i] = {}
     }
 
     return options
