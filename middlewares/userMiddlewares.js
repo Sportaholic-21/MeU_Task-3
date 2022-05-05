@@ -1,12 +1,12 @@
 require('dotenv').config()
 const bcrypt = require("bcrypt")
 const jwt = require('jsonwebtoken')
-const Op = require('sequelize').Op
 const { apiResponseFail } = require('../helpers/apiResponseOutput');
 const { queryBuilder, paramsProcess, queryTableSeparation, modelArrs, buildIncludes } = require('../helpers/queryBuilder')
 
 var initModels = require("../models/init-models");
-const sequelize = require('../config/sequelize')
+const sequelize = require('../config/sequelize');
+const ModelDiagramTree = require('../services/treeService');
 var models = initModels(sequelize);
 
 
@@ -48,9 +48,9 @@ module.exports.handleFilterOptions = async (req, res, next) => {
             }
             return res.redirect('../users?' + query)
         }
-        const userModels = modelArrs(models.UserTbl)
-        let options = queryTableSeparation(userModels, paramsProcess(rawOptions))
-        let includes = buildIncludes(userModels)
+        const userModels = new ModelDiagramTree(models.UserTbl)
+        let builder = queryTableSeparation(userModels.belongsToDiagram(), paramsProcess(rawOptions))
+        let includes = builder.include, options = builder.options
 
         req.userOptions = options
         req.includes = includes

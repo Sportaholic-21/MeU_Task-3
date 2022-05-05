@@ -1,26 +1,6 @@
 const Op = require('sequelize').Op
 const { dateInput, isDate } = require('./dateInput')
-const { underscoreToCamelCase, camelCaseToUnderscore, countString, firstLetterUppercase } = require('./syntaxHandler')
-
-module.exports.modelArrs = (baseModel, arr = []) => {
-    if (arr.length == 0) {
-        arr.push({
-            model: baseModel
-        })
-    }
-
-    for (i in baseModel.associations) {
-        let association = baseModel.associations[i]
-        if (association.associationType == "BelongsTo") {
-            arr.push({
-                model: association.target,
-                as: association.as
-            })
-            return this.modelArrs(association.target, arr)
-        }
-    }
-    return arr
-}
+const { underscoreToCamelCase, camelCaseToUnderscore, firstLetterUppercase } = require('./syntaxHandler')
 
 module.exports.paramsProcess = (params) => {
     let rawOptions = params, options = []
@@ -108,52 +88,64 @@ const dateColumnHandler = (column, parameters, operator) => {
 }
 
 
-module.exports.buildIncludes = (models) => {
-    const includeSyntax = (model, as) => {
+const buildIncludes = (include, model) => {
+    const includeSyntax = (model) => {
         return {
-            model: model,
-            as: as
+            model: model.model,
+            as: model.as
         }
     }
 
-    let include = {}
-    for (var i = 1; i < models.length; i++) {
-        if (Object.keys(include).length == 0) {
-            include = includeSyntax(models[i].model, models[i].as)
-        } else include['include'] = includeSyntax(models[i].model, models[i].as)
-    }
+    if (Object.keys(include).length == 0) include = includeSyntax(model)
+    else include["include"] = includeSyntax(model)
+
     return include
 }
 
 module.exports.queryTableSeparation = (models, options) => {
-
+    let include = {}
     for (var i in options) {
         let dateFlag = isDate(options[i].parameters)
+
         for (var col in options[i].columns) {
 
             options[i].columns[col] = underscoreToCamelCase(options[i].columns[col])
 
 
-            let split, column, colSyntax
+            let split, column, colSyntax, checkModel
             colSyntax = options[i].columns[col]
             split = colSyntax.split(".")
             column = split[split.length - 1]
 
-            if (split.length == 1) options[i].columns[col] = column
-            else {
+            if (split.length == 1) {
+                options[i].columns[col] = column
+                include = { all: true, nested: true }
+            } else {
                 let temp = "$"
+
                 for (var j = 0; j < split.length - 1; j++) {
-                    if (
-                        split[j] == models[j + 1].as || // alias
-                        firstLetterUppercase(split[j]) == models[j + 1].model.name // table name
-                    ) temp = temp.concat(models[j + 1].as, ".")
-                    else throw new Error("Invalid eager syntax. Have your syntax either match table name or its alias")
+                    checkModel = models[j + 1].find((e) => {
+                        return (
+                            split[j] == e.as ||
+                            firstLetterUppercase(split[j]) == e.model.name
+                        )
+                    })
+                    if (checkModel != undefined) {
+                        checkModel = (j == 0) ?
+                            (checkModel.references == models[j].model.name ? checkModel : undefined) :
+                            (models[j].find((e) => {
+                                return checkModel.references == e.model.name
+                            }) != undefined ? checkModel : undefined)
+                    } // check if ref the right parent table
+                    if (checkModel == undefined) throw new Error("Invalid eager syntax. Have your syntax either match table name or its alias")
+                    include = buildIncludes(include, checkModel)
+                    temp = temp.concat(checkModel.as, ".")
                 }
                 options[i].columns[col] = temp.concat(camelCaseToUnderscore(column), "$")
             }
 
             if (dateFlag) {
-                let model = models[countString(colSyntax, ".")].model
+                let model = checkModel == undefined ? models[0].model : checkModel.model
                 if (model.tableAttributes[column].type.constructor.key == "DATE") {
                     const dateColumnObj = dateColumnHandler(
                         options[i].columns[col],
@@ -167,7 +159,7 @@ module.exports.queryTableSeparation = (models, options) => {
         }
     }
 
-    return options
+    return { options, include }
 }
 
 
